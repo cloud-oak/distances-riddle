@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Distances Riddle</title>
+    <style type="text/css">
+      body {
+        margin: 0px;
+        padding: 0px;
+        background-color: black;
+      }
+
+      div.content {
+        width: 100vmin;
+        height: 100vmin;
+        position: absolute;
+        top:0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+
+        margin: auto;
+      }
+
+      #CSCanvas {
+        width: 100vmin; height: 100vmin;
+      }
+    </style>
+    <link rel="stylesheet" href="https://cindyjs.org/dist/latest/CindyJS.css">
+    <script type="text/javascript" src="https://cindyjs.org/dist/latest/Cindy.js"></script>
+    <script type="text/javascript" src="https://cindyjs.org/dist/latest/CindyGL.js"></script>
+
+    <script id="csinit" type="text/x-cindyscript">
+      resetclock();
+      phi = 0.6;
+      lambda = -3*pi/4;
+      createimage("buffer", 800, 800);
+      dirty = true;
+
+      points = [
+        [2.352222, 48.856613,  4658], // Paris
+        [37.617222, 55.755833, 5438], // Moscow
+        [34.783333, 32.066667, 6681], // Tel Aviv
+        [114.2, 22.3, 7878], // Hong Kong
+        [151.209444, -33.865, 8746], // Sydney
+        [28.045556, -26.204444, 9092] // Johannesburg
+      ];
+      points = apply(points,
+        [#_1 / 180 * pi, #_2 / 180 * pi, #_3]
+      );
+      hav(theta) := (1 - cos(theta)) / 2;
+      dist(pt1, pt2) := (
+        h = hav(pt1.y - pt2.y) + cos(pt1.y) * cos(pt2.y) * hav(pt1.x - pt2.x);
+        2 * 3959 * re(arcsin(re(sqrt(h))))
+      );
+    </script>
+    <script id="csdraw" type="text/x-cindyscript">
+        target = [0,0,0];
+        origin = [
+          -cos(lambda)*cos(phi),
+          sin(phi),
+          sin(lambda)*cos(phi)
+        ]*2.4;
+        mdir = (target-origin)/|(target-origin)|;
+        v = cross([0,1,0], mdir);
+        w = cross(mdir, v);
+        v = v/|v|;
+        w = w/|w|;
+
+        ray(t) := origin+t*dir;
+        if(dirty,
+          cutdir = mdir;
+          colorplot((-1, -1), (1, -1), "buffer",
+            dir = 2 * mdir + #.x*v + #.y*w; dir = dir / |dir|;
+
+            a = (dir*dir);
+            b = 2*(origin*dir);
+            c = origin*origin-1;
+            D = b^2-4*a*c; //discriminant of polynomial a t^2 + b t + c
+
+            if(D>0,
+              spheret = (-b-re(sqrt(D)))/(2*a);
+              pos = ray(spheret);
+              anglelambda = re(arctan2(pos.x, pos.z));
+              anglephi = re(arcsin(pos.y));
+              hitcolor = imagergb((-pi,-pi/2), (pi, -pi/2), "sphere", (anglelambda, anglephi), repeat->true, interpolate->true);
+
+              num_correct = 0;
+              forall(points,
+                d = abs(dist((anglelambda, anglephi), #) - #_3);
+                sig = exp(-d / 10);
+                hitcolor = (1 - sig) * hitcolor + re(sqrt(sig)) * [1, 0.5, 0];
+              );
+            );
+
+            hitcolor;
+          );
+          // dirty = false;
+        );
+        drawimage((-1, -1), (1, -1), "buffer", interpolate->true)
+    </script>
+    <script id="csmousedown" type="text/x-cindyscript">
+      lastmouse = mouse();
+    </script>
+    <script id="csmousedrag" type="text/x-cindyscript">
+      d = mouse() - lastmouse;
+      lambda = lambda + d.x;
+      phi = phi - d.y;
+      lastmouse = mouse();
+      dirty = true;
+    </script>
+
+    <script type="text/javascript">
+      var cdy = CindyJS({
+        scripts: "cs*",
+        angleUnit: "°",
+        exclusive: "true",
+        geometry: [
+        ],
+        ports: [
+          {id: "CSCanvas", transform: [{visibleRect: [-1, 1, 1, -1]}], background: "rgb(0,0,0)"}
+        ],
+        csconsole: false,
+        use: [
+          "CindyGL"
+        ],
+        autoplay: true,
+        images: {"sphere": "map.jpg"}
+      });
+      </script>
+  </head>
+  <body>
+    <div class="content">
+      <div id="CSCanvas"></div>
+    </div>
+  </body>
+</html>
+
